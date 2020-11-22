@@ -51,9 +51,12 @@ extern "C"
 //#define RADIO_XTAL_SEL                              PB_0 #INGB?
 //#define RADIO_DEVICE_SEL                            PA_4 #INGB?
 
-#define LED_1                                       PA_1
-#define LED_2                                       PA_2
+#define LED_W                                       PA_0
+#define LED_G                                       PA_1
+#define LED_B                                       PA_2
+#define LED_R                                       PA_3
 
+#define PWR_3V3                                       PI_9
 // Debug pins definition.
 //#define RADIO_DBG_PIN_TX                            PB_6
 //#define RADIO_DBG_PIN_RX                            PC_7

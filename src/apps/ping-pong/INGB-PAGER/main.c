@@ -120,8 +120,10 @@ static RadioEvents_t RadioEvents;
 /*!
  * LED GPIO pins objects
  */
-extern Gpio_t Led1;
-extern Gpio_t Led2;
+extern Gpio_t LedW;
+extern Gpio_t LedR;
+extern Gpio_t LedG;
+extern Gpio_t LedB;
 
 /*!
  * \brief Function to be executed on Radio Tx Done event
@@ -186,7 +188,7 @@ int main( void )
 
 
     Radio.Rx( RX_TIMEOUT_VALUE );
-
+    GpioToggle( &LedG );
     while( 1 )
     {
         switch( State )
@@ -199,7 +201,7 @@ int main( void )
                     if( strncmp( ( const char* )Buffer, ( const char* )PongMsg, 4 ) == 0 )
                     {
                         // Indicates on a LED that the received frame is a PONG
-                        GpioToggle( &Led1 );
+                        GpioToggle( &LedW );
 
                         // Send the next PING frame
                         Buffer[0] = 'P';
@@ -217,7 +219,7 @@ int main( void )
                     else if( strncmp( ( const char* )Buffer, ( const char* )PingMsg, 4 ) == 0 )
                     { // A master already exists then become a slave
                         isMaster = false;
-                        GpioToggle( &Led2 ); // Set LED off
+                        GpioToggle( &LedB ); // Set LED off
                         Radio.Rx( RX_TIMEOUT_VALUE );
                     }
                     else // valid reception but neither a PING or a PONG message
@@ -234,7 +236,7 @@ int main( void )
                     if( strncmp( ( const char* )Buffer, ( const char* )PingMsg, 4 ) == 0 )
                     {
                         // Indicates on a LED that the received frame is a PING
-                        GpioToggle( &Led1 );
+                        GpioToggle( &LedW );
 
                         // Send the reply to the PONG string
                         Buffer[0] = 'P';
@@ -261,7 +263,7 @@ int main( void )
         case TX:
             // Indicates on a LED that we have sent a PING [Master]
             // Indicates on a LED that we have sent a PONG [Slave]
-            GpioToggle( &Led2 );
+            GpioToggle( &LedB );
             Radio.Rx( RX_TIMEOUT_VALUE );
             State = LOWPOWER;
             break;

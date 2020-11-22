@@ -304,14 +304,7 @@ void SX126xSetRfTxPower( int8_t power )
 
 uint8_t SX126xGetDeviceId( void )
 {
-    if( GpioRead( &DeviceSel ) == 1 )
-    {
-        return SX1261;
-    }
-    else
-    {
-        return SX1262;
-    }
+    return SX1262;
 }
 
 void SX126xAntSwOn( void )

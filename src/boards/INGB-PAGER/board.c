@@ -47,8 +47,12 @@
 /*!
  * LED GPIO pins objects
  */
-Gpio_t Led1;
-Gpio_t Led2;
+Gpio_t LedR;
+Gpio_t LedG;
+Gpio_t LedB;
+Gpio_t LedW;
+
+Gpio_t Pwr_rv3;
 
 /*
  * MCU objects
@@ -60,11 +64,6 @@ Uart_t Uart1;
  * Initializes the unused GPIO to a know status
  */
 static void BoardUnusedIoInit( void );
-
-/*!
- * Initializes FLASH memory operations for EEPROM_Emul package
- */
-static void InitFlashMemoryOperations( void );
 
 /*!
  * System Clock Configuration
@@ -140,15 +139,15 @@ void BoardInitMcu( void )
     if( McuInitialized == false )
     {
         HAL_Init( );
-
-        InitFlashMemoryOperations( );
-
-        // LEDs
-        GpioInit( &Led1, LED_1, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0 );
-        GpioInit( &Led2, LED_2, PIN_OUTPUT, PIN_PUSH_PULL, PIN_NO_PULL, 0 );
-
         SystemClockConfig( );
 
+        // LEDs
+        GpioInit( &Pwr_rv3, PWR_3V3, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 1 );
+        GpioInit( &LedW, LED_W, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
+        GpioInit( &LedR, LED_R, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
+        GpioInit( &LedG, LED_G, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
+        GpioInit( &LedB, LED_B, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
+        DelayMsMcu(1);
         UsbIsConnected = true;
 
         FifoInit( &Uart1.FifoTx, Uart1TxBuffer, UART1_FIFO_TX_SIZE );
@@ -262,7 +261,7 @@ void SystemClockConfig( void )
     RCC_OscInitStruct.MSICalibrationValue = RCC_MSICALIBRATION_DEFAULT;
     RCC_OscInitStruct.PLL.PLLState        = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource       = RCC_PLLSOURCE_MSI;
-    RCC_OscInitStruct.PLL.PLLM            = 1;
+    RCC_OscInitStruct.PLL.PLLM            = 8;
     RCC_OscInitStruct.PLL.PLLN            = 40;
     RCC_OscInitStruct.PLL.PLLP            = RCC_PLLP_DIV7;
     RCC_OscInitStruct.PLL.PLLQ            = RCC_PLLQ_DIV4;
@@ -272,7 +271,7 @@ void SystemClockConfig( void )
         assert_param( FAIL );
     }
 
-    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK | 
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK |
                                   RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
     RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
     RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
@@ -290,7 +289,8 @@ void SystemClockConfig( void )
         assert_param( FAIL );
     }
 
-    HAL_SYSTICK_Config( HAL_RCC_GetHCLKFreq( ) / 1000 );
+    int f =  HAL_RCC_GetHCLKFreq();
+    HAL_SYSTICK_Config( f / 1000 );
 
     HAL_SYSTICK_CLKSourceConfig( SYSTICK_CLKSOURCE_HCLK );
 
@@ -334,55 +334,6 @@ static void PVD_Config( void )
     // Enable and set PVD Interrupt priority
     HAL_NVIC_SetPriority( PVD_PVM_IRQn, 0, 0 );
     HAL_NVIC_EnableIRQ( PVD_PVM_IRQn );
-}
-
-/*!
- * \brief Initializes the EEPROM emulation module.
- *
- * \remark This function is defined in eeprom-board.c file
- */
-void EepromMcuInit( void );
-
-static void InitFlashMemoryOperations( void )
-{
-    // Enable and set FLASH Interrupt priority
-    // FLASH interrupt is used for the purpose of pages clean up under interrupt
-    HAL_NVIC_SetPriority( FLASH_IRQn, 0, 0 );
-    HAL_NVIC_EnableIRQ( FLASH_IRQn );
-
-    // Unlock the Flash Program Erase controller
-    HAL_FLASH_Unlock( );
-
-#if defined (STM32L4R5xx) || defined (STM32L4R7xx) || defined (STM32L4R9xx) || defined (STM32L4S5xx) || defined (STM32L4S7xx) || defined (STM32L4S9xx)
-    // Clear OPTVERR bit and PEMPTY flag if set
-    if( __HAL_FLASH_GET_FLAG( FLASH_FLAG_OPTVERR ) != RESET )
-    {
-        __HAL_FLASH_CLEAR_FLAG( FLASH_FLAG_OPTVERR );
-    }
-
-    if( __HAL_FLASH_GET_FLAG( FLASH_FLAG_PEMPTY ) != RESET )
-    {
-        __HAL_FLASH_CLEAR_FLAG( FLASH_FLAG_PEMPTY );
-    }
-#endif /* defined (STM32L4R5xx) || defined (STM32L4R7xx) || defined (STM32L4R9xx) || defined (STM32L4S5xx) || defined (STM32L4S7xx) || defined (STM32L4S9xx) */
-
-    // Enable Power Control clock
-    __HAL_RCC_PWR_CLK_ENABLE();
-#if defined (USE_STM32L4XX_NUCLEO_144)
-    HAL_PWR_DisableWakeUpPin( PWR_WAKEUP_PIN2 );
-#endif /* defined (USE_STM32L4XX_NUCLEO_144) */
-
-    // Configure Programmable Voltage Detector (PVD) (optional)
-    // PVD interrupt is used to suspend the current application flow in case
-    // a power-down is detected, allowing the flash interface to finish any
-    // ongoing operation before a reset is triggered.
-    PVD_Config( );
-
-    // Initialize the EEPROM emulation driver
-    EepromMcuInit( );
-
-    // Lock the Flash Program Erase controller
-    HAL_FLASH_Lock( );
 }
 
 void SystemClockReConfig( void )
@@ -490,20 +441,8 @@ void LpmEnterSleepMode( void)
     HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 }
 
-/*!
- * \brief Indicates if an erasing operation is on going.
- *
- * \remark This function is defined in eeprom-board.c file
- *
- * \retval isEradingOnGoing Returns true is an erasing operation is on going.
- */
-bool EepromMcuIsErasingOnGoing( void );
-
 void BoardLowPowerHandler( void )
 {
-    // Wait for any cleanup to complete before entering standby/shutdown mode
-    while( EepromMcuIsErasingOnGoing( ) == true ){ }
-
     __disable_irq( );
     /*!
      * If an interrupt has occurred after __disable_irq( ), it is kept pending 

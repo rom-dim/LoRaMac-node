@@ -131,7 +131,7 @@ elseif(BOARD STREQUAL NucleoL476)
 
 elseif(BOARD STREQUAL INGB-PAGER)
     # Configure toolchain for INGB-PAGER
-    set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/boards/INGB-PAGER/cmsis/arm-gcc/stm32l476rgtx_flash.ld)
+    set(LINKER_SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/boards/INGB-PAGER/cmsis/arm-gcc/gcc_arm.ld)
     include(stm32l4)
 
     # Build platform specific board implementation
