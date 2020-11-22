@@ -42,7 +42,7 @@ extern "C"
 
 #if defined( SX1262MBXCAS )
 
-#define RADIO_NSS                                   PB_4
+#define RADIO_NSS                                   PB_0
 #define RADIO_BUSY                                  PF_12
 #define RADIO_DIO_1                                 PF_14
 
@@ -51,8 +51,8 @@ extern "C"
 //#define RADIO_XTAL_SEL                              PB_0 #INGB?
 //#define RADIO_DEVICE_SEL                            PA_4 #INGB?
 
-#define LED_1                                       NC
-#define LED_2                                       NC
+#define LED_1                                       PA_1
+#define LED_2                                       PA_2
 
 // Debug pins definition.
 //#define RADIO_DBG_PIN_TX                            PB_6
