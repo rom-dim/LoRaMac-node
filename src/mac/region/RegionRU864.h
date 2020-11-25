@@ -167,7 +167,7 @@ extern "C"
 /*!
  * Size of RFU 1 field
  */
-#define RU864_RFU1_SIZE                             2
+#define RU864_RFU1_SIZE                             1
 
 /*!
  * Size of RFU 2 field
@@ -186,6 +186,11 @@ extern "C"
 
 /*!
  * Datarate of the ping slot channel
+ */
+#define RU864_PING_SLOT_CHANNEL_DR                  DR_3
+
+/*!
+ * Ping slot channel datarate
  */
 #define RU864_PING_SLOT_CHANNEL_DR                  DR_3
 
@@ -419,13 +424,6 @@ LoRaMacStatus_t RegionRU864ChannelAdd( ChannelAddParams_t* channelAdd );
  * \retval Returns true, if the channel was removed successfully.
  */
 bool RegionRU864ChannelsRemove( ChannelRemoveParams_t* channelRemove  );
-
-/*!
- * \brief Sets the radio into continuous wave mode.
- *
- * \param [IN] continuousWave Pointer to the function parameters.
- */
-void RegionRU864SetContinuousWave( ContinuousWaveParams_t* continuousWave );
 
 /*!
  * \brief Computes new datarate according to the given offset

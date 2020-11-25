@@ -172,7 +172,7 @@ extern "C"
 /*!
  * Size of RFU 1 field
  */
-#define CN779_RFU1_SIZE                             2
+#define CN779_RFU1_SIZE                             1
 
 /*!
  * Size of RFU 2 field
@@ -428,13 +428,6 @@ LoRaMacStatus_t RegionCN779ChannelAdd( ChannelAddParams_t* channelAdd );
  * \retval Returns true, if the channel was removed successfully.
  */
 bool RegionCN779ChannelsRemove( ChannelRemoveParams_t* channelRemove  );
-
-/*!
- * \brief Sets the radio into continuous wave mode.
- *
- * \param [IN] continuousWave Pointer to the function parameters.
- */
-void RegionCN779SetContinuousWave( ContinuousWaveParams_t* continuousWave );
 
 /*!
  * \brief Computes new datarate according to the given offset

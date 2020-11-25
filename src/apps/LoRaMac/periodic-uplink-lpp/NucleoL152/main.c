@@ -22,6 +22,8 @@
 /*! \file periodic-uplink/NucleoL152/main.c */
 
 #include <stdio.h>
+#include "../firmwareVersion.h"
+#include "../../common/githubVersion.h"
 #include "utilities.h"
 #include "board.h"
 #include "gpio.h"
@@ -114,7 +116,7 @@ static LmHandlerAppData_t AppData =
 {
     .Buffer = AppDataBuffer,
     .BufferSize = 0,
-    .Port = 0
+    .Port = 0,
 };
 
 /*!
@@ -151,7 +153,7 @@ static void OnJoinRequest( LmHandlerJoinParams_t* params );
 static void OnTxData( LmHandlerTxParams_t* params );
 static void OnRxData( LmHandlerAppData_t* appData, LmHandlerRxParams_t* params );
 static void OnClassChange( DeviceClass_t deviceClass );
-static void OnBeaconStatusChange( LoRaMAcHandlerBeaconParams_t* params );
+static void OnBeaconStatusChange( LoRaMacHandlerBeaconParams_t* params );
 #if( LMH_SYS_TIME_UPDATE_NEW_API == 1 )
 static void OnSysTimeUpdate( bool isSynchronized, int32_t timeCorrection );
 #else
@@ -160,6 +162,10 @@ static void OnSysTimeUpdate( void );
 static void PrepareTxFrame( void );
 static void StartTxProcess( LmHandlerTxEvents_t txEvent );
 static void UplinkProcess( void );
+
+static void OnTxPeriodicityChanged( uint32_t periodicity );
+static void OnTxFrameCtrlChanged( LmHandlerMsgTypes_t isTxConfirmed );
+static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity );
 
 /*!
  * Function executed on TxTimer event
@@ -203,19 +209,21 @@ static LmHandlerParams_t LmHandlerParams =
 {
     .Region = ACTIVE_REGION,
     .AdrEnable = LORAWAN_ADR_STATE,
+    .IsTxConfirmed = LORAWAN_DEFAULT_CONFIRMED_MSG_STATE,
     .TxDatarate = LORAWAN_DEFAULT_DATARATE,
     .PublicNetworkEnable = LORAWAN_PUBLIC_NETWORK,
     .DutyCycleEnabled = LORAWAN_DUTYCYCLE_ON,
     .DataBufferMaxSize = LORAWAN_APP_DATA_BUFFER_MAX_SIZE,
-    .DataBuffer = AppDataBuffer
+    .DataBuffer = AppDataBuffer,
+    .PingSlotPeriodicity = REGION_COMMON_DEFAULT_PING_SLOT_PERIODICITY,
 };
 
 static LmhpComplianceParams_t LmhpComplianceParams =
 {
-    .AdrEnabled = LORAWAN_ADR_STATE,
-    .DutyCycleEnabled = LORAWAN_DUTYCYCLE_ON,
-    .StopPeripherals = NULL,
-    .StartPeripherals = NULL,
+    .FwVersion.Value = FIRMWARE_VERSION,
+    .OnTxPeriodicityChanged = OnTxPeriodicityChanged,
+    .OnTxFrameCtrlChanged = OnTxFrameCtrlChanged,
+    .OnPingSlotPeriodicityChanged = OnPingSlotPeriodicityChanged,
 };
 
 /*!
@@ -226,6 +234,8 @@ static LmhpComplianceParams_t LmhpComplianceParams =
 static volatile uint8_t IsMacProcessPending = 0;
 
 static volatile uint8_t IsTxFramePending = 0;
+
+static volatile uint32_t TxPeriodicity = 0;
 
 /*!
  * LED GPIO pins objects
@@ -250,8 +260,11 @@ int main( void )
     TimerInit( &LedBeaconTimer, OnLedBeaconTimerEvent );
     TimerSetValue( &LedBeaconTimer, 5000 );
 
-    const Version_t appVersion = { .Fields.Major = 1, .Fields.Minor = 0, .Fields.Patch = 0 };
-    const Version_t gitHubVersion = { .Fields.Major = 4, .Fields.Minor = 4, .Fields.Patch = 5 };
+    // Initialize transmission periodicity variable
+    TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
+
+    const Version_t appVersion = { .Value = FIRMWARE_VERSION };
+    const Version_t gitHubVersion = { .Value = GITHUB_VERSION };
     DisplayAppInfo( "periodic-uplink-lpp", 
                     &appVersion,
                     &gitHubVersion );
@@ -372,12 +385,12 @@ static void OnClassChange( DeviceClass_t deviceClass )
     {
         .Buffer = NULL,
         .BufferSize = 0,
-        .Port = 0
+        .Port = 0,
     };
     LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
 }
 
-static void OnBeaconStatusChange( LoRaMAcHandlerBeaconParams_t* params )
+static void OnBeaconStatusChange( LoRaMacHandlerBeaconParams_t* params )
 {
     switch( params->State )
     {
@@ -434,7 +447,7 @@ static void PrepareTxFrame( void )
     CayenneLppCopy( AppData.Buffer );
     AppData.BufferSize = CayenneLppGetSize( );
 
-    if( LmHandlerSend( &AppData, LORAWAN_DEFAULT_CONFIRMED_MSG_STATE ) == LORAMAC_HANDLER_SUCCESS )
+    if( LmHandlerSend( &AppData, LmHandlerParams.IsTxConfirmed ) == LORAMAC_HANDLER_SUCCESS )
     {
         // Switch LED 1 ON
         GpioWrite( &Led1, 1 );
@@ -452,7 +465,7 @@ static void StartTxProcess( LmHandlerTxEvents_t txEvent )
         {
             // Schedule 1st packet transmission
             TimerInit( &TxTimer, OnTxTimerEvent );
-            TimerSetValue( &TxTimer, APP_TX_DUTYCYCLE  + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND ) );
+            TimerSetValue( &TxTimer, TxPeriodicity );
             OnTxTimerEvent( NULL );
         }
         break;
@@ -476,6 +489,26 @@ static void UplinkProcess( void )
     }
 }
 
+static void OnTxPeriodicityChanged( uint32_t periodicity )
+{
+    TxPeriodicity = periodicity;
+
+    if( TxPeriodicity == 0 )
+    { // Revert to application default periodicity
+        TxPeriodicity = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
+    }
+}
+
+static void OnTxFrameCtrlChanged( LmHandlerMsgTypes_t isTxConfirmed )
+{
+    LmHandlerParams.IsTxConfirmed = isTxConfirmed;
+}
+
+static void OnPingSlotPeriodicityChanged( uint8_t pingSlotPeriodicity )
+{
+    LmHandlerParams.PingSlotPeriodicity = pingSlotPeriodicity;
+}
+
 /*!
  * Function executed on TxTimer event
  */
@@ -486,7 +519,7 @@ static void OnTxTimerEvent( void* context )
     IsTxFramePending = 1;
 
     // Schedule next transmission
-    TimerSetValue( &TxTimer, APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND ) );
+    TimerSetValue( &TxTimer, TxPeriodicity );
     TimerStart( &TxTimer );
 }
 

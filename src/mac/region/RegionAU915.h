@@ -57,7 +57,7 @@ extern "C"
 /*!
  * Maximal datarate that can be used by the node
  */
-#define AU915_TX_MAX_DATARATE                       DR_6
+#define AU915_TX_MAX_DATARATE                       DR_13
 
 /*!
  * Minimal datarate that can be used by the node
@@ -171,7 +171,7 @@ extern "C"
 /*!
  * Size of RFU 1 field
  */
-#define AU915_RFU1_SIZE                             5
+#define AU915_RFU1_SIZE                             4
 
 /*!
  * Size of RFU 2 field
@@ -441,13 +441,6 @@ LoRaMacStatus_t RegionAU915ChannelAdd( ChannelAddParams_t* channelAdd );
  * \retval Returns true, if the channel was removed successfully.
  */
 bool RegionAU915ChannelsRemove( ChannelRemoveParams_t* channelRemove  );
-
-/*!
- * \brief Sets the radio into continuous wave mode.
- *
- * \param [IN] continuousWave Pointer to the function parameters.
- */
-void RegionAU915SetContinuousWave( ContinuousWaveParams_t* continuousWave );
 
 /*!
  * \brief Computes new datarate according to the given offset

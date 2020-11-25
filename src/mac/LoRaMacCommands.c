@@ -23,10 +23,12 @@ Maintainer: Miguel Luis ( Semtech ), Daniel Jaeckle ( STACKFORCE ), Johannes Bru
 #include "LoRaMacCommands.h"
 #include "LoRaMacConfirmQueue.h"
 
+#ifndef NUM_OF_MAC_COMMANDS
 /*!
  * Number of MAC Command slots
  */
-#define NUM_OF_MAC_COMMANDS 15
+#define NUM_OF_MAC_COMMANDS 32
+#endif
 
 /*!
  * Size of the CID field of MAC commands
@@ -278,10 +280,14 @@ static bool IsSticky( uint8_t cid )
 {
     switch( cid )
     {
+        case MOTE_MAC_RESET_IND:
+        case MOTE_MAC_REKEY_IND:
+        case MOTE_MAC_DEVICE_MODE_IND:
         case MOTE_MAC_DL_CHANNEL_ANS:
         case MOTE_MAC_RX_PARAM_SETUP_ANS:
         case MOTE_MAC_RX_TIMING_SETUP_ANS:
         case MOTE_MAC_TX_PARAM_SETUP_ANS:
+        case MOTE_MAC_PING_SLOT_CHANNEL_ANS:
             return true;
         default:
             return false;
@@ -551,6 +557,12 @@ uint8_t LoRaMacCommandsGetCmdSize( uint8_t cid )
     // Decode Frame MAC commands
     switch( cid )
     {
+        case SRV_MAC_RESET_CONF:
+        {
+            // cid + Serv_LoRaWAN_version
+            cidSize = 2;
+            break;
+        }
         case SRV_MAC_LINK_CHECK_ANS:
         {
             // cid + Margin + GwCnt
@@ -603,6 +615,36 @@ uint8_t LoRaMacCommandsGetCmdSize( uint8_t cid )
         {
             // cid + ChIndex + Frequency (3)
             cidSize = 5;
+            break;
+        }
+        case SRV_MAC_REKEY_CONF:
+        {
+            // cid + Serv_LoRaWAN_version
+            cidSize = 2;
+            break;
+        }
+        case SRV_MAC_ADR_PARAM_SETUP_REQ:
+        {
+            // cid + ADRparam
+            cidSize = 2;
+            break;
+        }
+        case SRV_MAC_FORCE_REJOIN_REQ:
+        {
+            // cid + Payload (2)
+            cidSize = 3;
+            break;
+        }
+        case SRV_MAC_REJOIN_PARAM_REQ:
+        {
+            // cid + Payload (1)
+            cidSize = 2;
+            break;
+        }
+        case SRV_MAC_DEVICE_MODE_CONF:
+        {
+            // cid + Class
+            cidSize = 2;
             break;
         }
         case SRV_MAC_DEVICE_TIME_ANS:
