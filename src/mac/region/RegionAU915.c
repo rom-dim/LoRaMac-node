@@ -109,7 +109,8 @@ static bool VerifyRfFreq( uint32_t freq )
         return false;
     }
 
-    // Test for frequency range - take RX and TX freqencies into account
+    // Tx frequencies for 125kHz
+    // Also includes the range for 500kHz channels
     if( ( freq < 915200000 ) ||  ( freq > 927800000 ) )
     {
         return false;
@@ -234,14 +235,9 @@ PhyParam_t RegionAU915GetPhyParam( GetPhyParams_t* getPhy )
             phyParam.Value = REGION_COMMON_DEFAULT_JOIN_ACCEPT_DELAY2;
             break;
         }
-        case PHY_MAX_FCNT_GAP:
+        case PHY_RETRANSMIT_TIMEOUT:
         {
-            phyParam.Value = REGION_COMMON_DEFAULT_MAX_FCNT_GAP;
-            break;
-        }
-        case PHY_ACK_TIMEOUT:
-        {
-            phyParam.Value = ( REGION_COMMON_DEFAULT_ACK_TIMEOUT + randr( -REGION_COMMON_DEFAULT_ACK_TIMEOUT_RND, REGION_COMMON_DEFAULT_ACK_TIMEOUT_RND ) );
+            phyParam.Value = ( REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT + randr( -REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT_RND, REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT_RND ) );
             break;
         }
         case PHY_DEF_DR1_OFFSET:
@@ -532,12 +528,12 @@ bool RegionAU915ChanMaskSet( ChanMaskSetParams_t* chanMaskSet )
     {
         case CHANNELS_MASK:
         {
-            RegionCommonChanMaskCopy( NvmCtx.ChannelsMask, chanMaskSet->ChannelsMaskIn, CHANNELS_MASK_SIZE );
+            RegionCommonChanMaskCopy( NvmCtx.ChannelsMask, chanMaskSet->ChannelsMaskIn, 6 );
 
             NvmCtx.ChannelsDefaultMask[4] = NvmCtx.ChannelsDefaultMask[4] & CHANNELS_MASK_500KHZ_MASK;
             NvmCtx.ChannelsDefaultMask[5] = 0x0000;
 
-            for( uint8_t i = 0; i < CHANNELS_MASK_SIZE; i++ )
+            for( uint8_t i = 0; i < 6; i++ )
             { // Copy-And the channels mask
                 NvmCtx.ChannelsMaskRemaining[i] &= NvmCtx.ChannelsMask[i];
             }
@@ -545,7 +541,7 @@ bool RegionAU915ChanMaskSet( ChanMaskSetParams_t* chanMaskSet )
         }
         case CHANNELS_DEFAULT_MASK:
         {
-            RegionCommonChanMaskCopy( NvmCtx.ChannelsDefaultMask, chanMaskSet->ChannelsMaskIn, CHANNELS_MASK_SIZE );
+            RegionCommonChanMaskCopy( NvmCtx.ChannelsDefaultMask, chanMaskSet->ChannelsMaskIn, 6 );
             break;
         }
         default:
@@ -615,7 +611,6 @@ bool RegionAU915TxConfig( TxConfigParams_t* txConfig, int8_t* txPower, TimerTime
 
     // Setup maximum payload lenght of the radio driver
     Radio.SetMaxPayloadLength( MODEM_LORA, txConfig->PktLen );
-
     // Update time-on-air
     *txTimeOnAir = GetTimeOnAir( txConfig->Datarate, txConfig->PktLen );
 
@@ -941,7 +936,7 @@ LoRaMacStatus_t RegionAU915NextChannel( NextChanParams_t* nextChanParams, uint8_
         }
 
         // Disable the channel in the mask
-        RegionCommonChanDisable( NvmCtx.ChannelsMaskRemaining, *channel, AU915_MAX_NB_CHANNELS );
+        RegionCommonChanDisable( NvmCtx.ChannelsMaskRemaining, *channel, AU915_MAX_NB_CHANNELS - 8 );
     }
     return status;
 }
@@ -954,18 +949,6 @@ LoRaMacStatus_t RegionAU915ChannelAdd( ChannelAddParams_t* channelAdd )
 bool RegionAU915ChannelsRemove( ChannelRemoveParams_t* channelRemove  )
 {
     return LORAMAC_STATUS_PARAMETER_INVALID;
-}
-
-void RegionAU915SetContinuousWave( ContinuousWaveParams_t* continuousWave )
-{
-    int8_t txPowerLimited = RegionCommonLimitTxPower( continuousWave->TxPower, NvmCtx.Bands[NvmCtx.Channels[continuousWave->Channel].Band].TxMaxPower );
-    int8_t phyTxPower = 0;
-    uint32_t frequency = NvmCtx.Channels[continuousWave->Channel].Frequency;
-
-    // Calculate physical TX power
-    phyTxPower = RegionCommonComputeTxPower( txPowerLimited, continuousWave->MaxEirp, continuousWave->AntennaGain );
-
-    Radio.SetTxContinuousWave( frequency, phyTxPower, continuousWave->Timeout );
 }
 
 uint8_t RegionAU915ApplyDrOffset( uint8_t downlinkDwellTime, int8_t dr, int8_t drOffset )

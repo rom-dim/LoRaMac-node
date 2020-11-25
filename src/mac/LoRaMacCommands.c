@@ -23,10 +23,12 @@ Maintainer: Miguel Luis ( Semtech ), Daniel Jaeckle ( STACKFORCE ), Johannes Bru
 #include "LoRaMacCommands.h"
 #include "LoRaMacConfirmQueue.h"
 
+#ifndef NUM_OF_MAC_COMMANDS
 /*!
  * Number of MAC Command slots
  */
-#define NUM_OF_MAC_COMMANDS 15
+#define NUM_OF_MAC_COMMANDS 32
+#endif
 
 /*!
  * Size of the CID field of MAC commands
@@ -282,6 +284,7 @@ static bool IsSticky( uint8_t cid )
         case MOTE_MAC_RX_PARAM_SETUP_ANS:
         case MOTE_MAC_RX_TIMING_SETUP_ANS:
         case MOTE_MAC_TX_PARAM_SETUP_ANS:
+        case MOTE_MAC_PING_SLOT_CHANNEL_ANS:
             return true;
         default:
             return false;

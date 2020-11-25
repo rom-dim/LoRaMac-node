@@ -190,14 +190,9 @@ PhyParam_t RegionIN865GetPhyParam( GetPhyParams_t* getPhy )
             phyParam.Value = REGION_COMMON_DEFAULT_JOIN_ACCEPT_DELAY2;
             break;
         }
-        case PHY_MAX_FCNT_GAP:
+        case PHY_RETRANSMIT_TIMEOUT:
         {
-            phyParam.Value = REGION_COMMON_DEFAULT_MAX_FCNT_GAP;
-            break;
-        }
-        case PHY_ACK_TIMEOUT:
-        {
-            phyParam.Value = ( REGION_COMMON_DEFAULT_ACK_TIMEOUT + randr( -REGION_COMMON_DEFAULT_ACK_TIMEOUT_RND, REGION_COMMON_DEFAULT_ACK_TIMEOUT_RND ) );
+            phyParam.Value = ( REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT + randr( -REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT_RND, REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT_RND ) );
             break;
         }
         case PHY_DEF_DR1_OFFSET:
@@ -730,9 +725,7 @@ uint8_t RegionIN865RxParamSetupReq( RxParamSetupReqParams_t* rxParamSetupReq )
     }
 
     // Verify datarate offset
-    if( ( RegionCommonValueInRange( rxParamSetupReq->DrOffset, IN865_MIN_RX1_DR_OFFSET, IN865_MAX_RX1_DR_OFFSET ) == false ) ||
-        // DR_6 is not supported by this region
-        ( rxParamSetupReq->DrOffset == DR_6 ) )
+    if( RegionCommonValueInRange( rxParamSetupReq->DrOffset, IN865_MIN_RX1_DR_OFFSET, IN865_MAX_RX1_DR_OFFSET ) == false )
     {
         status &= 0xFB; // Rx1DrOffset range KO
     }
@@ -953,22 +946,15 @@ bool RegionIN865ChannelsRemove( ChannelRemoveParams_t* channelRemove  )
     return RegionCommonChanDisable( NvmCtx.ChannelsMask, id, IN865_MAX_NB_CHANNELS );
 }
 
-void RegionIN865SetContinuousWave( ContinuousWaveParams_t* continuousWave )
-{
-    int8_t txPowerLimited = RegionCommonLimitTxPower( continuousWave->TxPower, NvmCtx.Bands[NvmCtx.Channels[continuousWave->Channel].Band].TxMaxPower );
-    int8_t phyTxPower = 0;
-    uint32_t frequency = NvmCtx.Channels[continuousWave->Channel].Frequency;
-
-    // Calculate physical TX power
-    phyTxPower = RegionCommonComputeTxPower( txPowerLimited, continuousWave->MaxEirp, continuousWave->AntennaGain );
-
-    Radio.SetTxContinuousWave( frequency, phyTxPower, continuousWave->Timeout );
-}
-
 uint8_t RegionIN865ApplyDrOffset( uint8_t downlinkDwellTime, int8_t dr, int8_t drOffset )
 {
-    // Apply offset formula
-    return MIN( DR_5, MAX( DR_0, dr - EffectiveRx1DrOffsetIN865[drOffset] ) );
+    int8_t datarate = EffectiveRx1DrOffsetIN865[dr][drOffset];
+
+    if( ( datarate < 0 ) || ( dr == DR_6 ) )
+    {
+        datarate = DR_0;
+    }
+    return datarate;
 }
 
 void RegionIN865RxBeaconSetup( RxBeaconSetup_t* rxBeaconSetup, uint8_t* outDr )

@@ -215,14 +215,9 @@ PhyParam_t RegionUS915GetPhyParam( GetPhyParams_t* getPhy )
             phyParam.Value = REGION_COMMON_DEFAULT_JOIN_ACCEPT_DELAY2;
             break;
         }
-        case PHY_MAX_FCNT_GAP:
+        case PHY_RETRANSMIT_TIMEOUT:
         {
-            phyParam.Value = REGION_COMMON_DEFAULT_MAX_FCNT_GAP;
-            break;
-        }
-        case PHY_ACK_TIMEOUT:
-        {
-            phyParam.Value = ( REGION_COMMON_DEFAULT_ACK_TIMEOUT + randr( -REGION_COMMON_DEFAULT_ACK_TIMEOUT_RND, REGION_COMMON_DEFAULT_ACK_TIMEOUT_RND ) );
+            phyParam.Value = ( REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT + randr( -REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT_RND, REGION_COMMON_DEFAULT_RETRANSMIT_TIMEOUT_RND ) );
             break;
         }
         case PHY_DEF_DR1_OFFSET:
@@ -391,10 +386,10 @@ void RegionUS915InitDefaults( InitDefaultsParams_t* params )
             NvmCtx.ChannelsDefaultMask[5] = 0x0000;
 
             // Copy channels default mask
-            RegionCommonChanMaskCopy( NvmCtx.ChannelsMask, NvmCtx.ChannelsDefaultMask, CHANNELS_MASK_SIZE );
+            RegionCommonChanMaskCopy( NvmCtx.ChannelsMask, NvmCtx.ChannelsDefaultMask, 6 );
 
             // Copy into channels mask remaining
-            RegionCommonChanMaskCopy( NvmCtx.ChannelsMaskRemaining, NvmCtx.ChannelsMask, CHANNELS_MASK_SIZE );
+            RegionCommonChanMaskCopy( NvmCtx.ChannelsMaskRemaining, NvmCtx.ChannelsMask, 6 );
             break;
         }
         case INIT_TYPE_RESET_TO_DEFAULT_CHANNELS:
@@ -404,9 +399,9 @@ void RegionUS915InitDefaults( InitDefaultsParams_t* params )
         case INIT_TYPE_ACTIVATE_DEFAULT_CHANNELS:
         {
             // Copy channels default mask
-            RegionCommonChanMaskCopy( NvmCtx.ChannelsMask, NvmCtx.ChannelsDefaultMask, CHANNELS_MASK_SIZE );
+            RegionCommonChanMaskCopy( NvmCtx.ChannelsMask, NvmCtx.ChannelsDefaultMask, 6 );
 
-            for( uint8_t i = 0; i < CHANNELS_MASK_SIZE; i++ )
+            for( uint8_t i = 0; i < 6; i++ )
             { // Copy-And the channels mask
                 NvmCtx.ChannelsMaskRemaining[i] &= NvmCtx.ChannelsMask[i];
             }
@@ -442,9 +437,12 @@ bool RegionUS915Verify( VerifyParams_t* verify, PhyAttribute_t phyAttribute )
             return VerifyRfFreq( verify->Frequency );
         }
         case PHY_TX_DR:
-        case PHY_DEF_TX_DR:
         {
             return RegionCommonValueInRange( verify->DatarateParams.Datarate, US915_TX_MIN_DATARATE, US915_TX_MAX_DATARATE );
+        }
+        case PHY_DEF_TX_DR:
+        {
+            return RegionCommonValueInRange( verify->DatarateParams.Datarate, DR_0, DR_5 );
         }
         case PHY_RX_DR:
         {
@@ -605,17 +603,16 @@ uint8_t RegionUS915LinkAdrReq( LinkAdrReqParams_t* linkAdrReq, int8_t* drOut, in
     RegionCommonLinkAdrParams_t linkAdrParams = { 0 };
     uint8_t nextIndex = 0;
     uint8_t bytesProcessed = 0;
-    uint16_t channelsMask[CHANNELS_MASK_SIZE] = { 0, 0, 0, 0, 0, 0 };
+    uint16_t channelsMask[6] = { 0, 0, 0, 0, 0, 0 };
     GetPhyParams_t getPhy;
     PhyParam_t phyParam;
     RegionCommonLinkAdrReqVerifyParams_t linkAdrVerifyParams;
 
     // Initialize local copy of channels mask
-    RegionCommonChanMaskCopy( channelsMask, NvmCtx.ChannelsMask, CHANNELS_MASK_SIZE );
+    RegionCommonChanMaskCopy( channelsMask, NvmCtx.ChannelsMask, 6 );
 
     while( bytesProcessed < linkAdrReq->PayloadSize )
     {
-        // Get ADR request parameters
         nextIndex = RegionCommonParseLinkAdrReq( &( linkAdrReq->Payload[bytesProcessed] ), &linkAdrParams );
 
         if( nextIndex == 0 )
@@ -799,7 +796,6 @@ uint8_t RegionUS915NewChannelReq( NewChannelReqParams_t* newChannelReq )
 
 int8_t RegionUS915TxParamSetupReq( TxParamSetupReqParams_t* txParamSetupReq )
 {
-    // Do not accept the request
     return -1;
 }
 
@@ -872,11 +868,11 @@ LoRaMacStatus_t RegionUS915NextChannel( NextChanParams_t* nextChanParams, uint8_
     identifyChannelsParam.DutyCycleEnabled = nextChanParams->DutyCycleEnabled;
     identifyChannelsParam.MaxBands = US915_MAX_NB_BANDS;
 
+    identifyChannelsParam.CountNbOfEnabledChannelsParam = &countChannelsParams;
+
     identifyChannelsParam.ElapsedTimeSinceStartUp = nextChanParams->ElapsedTimeSinceStartUp;
     identifyChannelsParam.LastTxIsJoinRequest = nextChanParams->LastTxIsJoinRequest;
     identifyChannelsParam.ExpectedTimeOnAir = GetTimeOnAir( nextChanParams->Datarate, nextChanParams->PktLen );
-
-    identifyChannelsParam.CountNbOfEnabledChannelsParam = &countChannelsParams;
 
     status = RegionCommonIdentifyChannels( &identifyChannelsParam, aggregatedTimeOff, enabledChannels,
                                            &nbEnabledChannels, &nbRestrictedChannels, time );
@@ -931,18 +927,6 @@ LoRaMacStatus_t RegionUS915ChannelAdd( ChannelAddParams_t* channelAdd )
 bool RegionUS915ChannelsRemove( ChannelRemoveParams_t* channelRemove  )
 {
     return LORAMAC_STATUS_PARAMETER_INVALID;
-}
-
-void RegionUS915SetContinuousWave( ContinuousWaveParams_t* continuousWave )
-{
-    int8_t txPowerLimited = LimitTxPower( continuousWave->TxPower, NvmCtx.Bands[NvmCtx.Channels[continuousWave->Channel].Band].TxMaxPower, continuousWave->Datarate, NvmCtx.ChannelsMask );
-    int8_t phyTxPower = 0;
-    uint32_t frequency = NvmCtx.Channels[continuousWave->Channel].Frequency;
-
-    // Calculate physical TX power
-    phyTxPower = RegionCommonComputeTxPower( txPowerLimited, US915_DEFAULT_MAX_ERP, 0 );
-
-    Radio.SetTxContinuousWave( frequency, phyTxPower, continuousWave->Timeout );
 }
 
 uint8_t RegionUS915ApplyDrOffset( uint8_t downlinkDwellTime, int8_t dr, int8_t drOffset )

@@ -72,8 +72,9 @@ extern "C"
 #ifndef REGION_VERSION
 /*!
  * Regional parameters version definition.
+ * RP002-1.0.1
  */
-#define REGION_VERSION                              0x00010003
+#define REGION_VERSION                              0x02010001
 #endif
 
 
@@ -674,13 +675,9 @@ typedef enum ePhyAttribute
      */
     PHY_JOIN_ACCEPT_DELAY2,
     /*!
-     * Maximum frame counter gap.
-     */
-    PHY_MAX_FCNT_GAP,
-    /*!
      * Acknowledgement time out.
      */
-    PHY_ACK_TIMEOUT,
+    PHY_RETRANSMIT_TIMEOUT,
     /*!
      * Default datarate offset for window 1.
      */
@@ -1048,6 +1045,7 @@ typedef union uVerifyParams
  */
 typedef struct sApplyCFListParams
 {
+    uint8_t JoinChannel;
     /*!
      * Payload which contains the CF list.
      */
@@ -1118,6 +1116,13 @@ typedef struct sRxConfigParams
      * Sets the RX window.
      */
     LoRaMacRxSlot_t RxSlot;
+    /*!
+     * LoRaWAN Network End-Device Activation ( ACTIVATION_TYPE_NONE, ACTIVATION_TYPE_ABP
+     * or ACTIVATION_TYPE_OTTA )
+     *
+     * Related MIB type: \ref MIB_NETWORK_ACTIVATION
+     */
+    ActivationType_t NetworkActivation;
 }RxConfigParams_t;
 
 /*!
@@ -1337,37 +1342,6 @@ typedef struct sChannelRemoveParams
      */
     uint8_t ChannelId;
 }ChannelRemoveParams_t;
-
-/*!
- * Parameter structure for the function RegionContinuousWave.
- */
-typedef struct sContinuousWaveParams
-{
-    /*!
-     * Current channel index.
-     */
-    uint8_t Channel;
-    /*!
-     * Datarate. Used to limit the TX power.
-     */
-    int8_t Datarate;
-    /*!
-     * The TX power to setup.
-     */
-    int8_t TxPower;
-    /*!
-     * Max EIRP, if applicable.
-     */
-    float MaxEirp;
-    /*!
-     * The antenna gain, if applicable.
-     */
-    float AntennaGain;
-    /*!
-     * Specifies the time the radio will stay in CW mode.
-     */
-    uint16_t Timeout;
-}ContinuousWaveParams_t;
 
 /*!
  * Parameter structure for the function RegionRxBeaconSetup
@@ -1672,15 +1646,6 @@ LoRaMacStatus_t RegionChannelAdd( LoRaMacRegion_t region, ChannelAddParams_t* ch
  * \retval Returns true, if the channel was removed successfully.
  */
 bool RegionChannelsRemove( LoRaMacRegion_t region, ChannelRemoveParams_t* channelRemove );
-
-/*!
- * \brief Sets the radio into continuous wave mode.
- *
- * \param [IN] region LoRaWAN region.
- *
- * \param [IN] continuousWave Pointer to the function parameters.
- */
-void RegionSetContinuousWave( LoRaMacRegion_t region, ContinuousWaveParams_t* continuousWave );
 
 /*!
  * \brief Computes new datarate according to the given offset
