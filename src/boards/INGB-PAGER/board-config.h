@@ -25,11 +25,7 @@ extern "C"
 /*!
  * Defines the time required for the TCXO to wakeup [ms].
  */
-#if defined( SX1262MBXDAS )
-#define BOARD_TCXO_WAKEUP_TIME                      5
-#else
 #define BOARD_TCXO_WAKEUP_TIME                      0
-#endif
 
 /*!
  * Board MCU pins definitions
@@ -39,8 +35,6 @@ extern "C"
 #define RADIO_MOSI                                  PA_7
 #define RADIO_MISO                                  PA_6
 #define RADIO_SCLK                                  PA_5
-
-#if defined( SX1262MBXCAS )
 
 #define RADIO_NSS                                   PB_0
 #define RADIO_BUSY                                  PF_12
@@ -62,7 +56,6 @@ extern "C"
 //#define RADIO_DBG_PIN_TX                            PB_6
 //#define RADIO_DBG_PIN_RX                            PC_7
 
-#endif
 /*
 #define OSC_LSE_IN                                  PC_14
 #define OSC_LSE_OUT                                 PC_15

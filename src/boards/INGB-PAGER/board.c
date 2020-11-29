@@ -32,9 +32,8 @@
 #include "lpm-board.h"
 #include "rtc-board.h"
 
-#if defined( SX1262MBXCAS )
-    #include "sx126x-board.h"
-#endif
+#include "sx126x-board.h"
+
 #include "board.h"
 
 /*!
@@ -73,19 +72,9 @@ static void BoardUnusedIoInit( void );
 static void SystemClockConfig( void );
 
 /*!
- * Used to measure and calibrate the system wake-up time from STOP mode
- */
-static void CalibrateSystemWakeupTime( void );
-
-/*!
  * System Clock Re-Configuration when waking up from STOP mode
  */
 static void SystemClockReConfig( void );
-
-/*!
- * Timer used at first boot to calibrate the SystemWakeupTime
- */
-static TimerEvent_t CalibrateSystemWakeupTimeTimer;
 
 /*!
  * Flag to indicate if the MCU is Initialized
@@ -93,12 +82,7 @@ static TimerEvent_t CalibrateSystemWakeupTimeTimer;
 static bool McuInitialized = false;
 
 /*!
- * Flag used to indicate if board is powered from the USB
- */
-static bool UsbIsConnected = false;
-
-/*!
- * UART2 FIFO buffers size
+ * UART1 FIFO buffers size
  */
 #define UART1_FIFO_TX_SIZE                                1024
 #define UART1_FIFO_RX_SIZE                                1024
@@ -151,8 +135,6 @@ void BoardInitMcu( void )
         GpioInit( &LedR, LED_R, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
         GpioInit( &LedG, LED_G, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
         GpioInit( &LedB, LED_B, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
-        DelayMsMcu(1);
-        UsbIsConnected = true;
 
         FifoInit( &Uart1.FifoTx, Uart1TxBuffer, UART1_FIFO_TX_SIZE );
         FifoInit( &Uart1.FifoRx, Uart1RxBuffer, UART1_FIFO_RX_SIZE );
@@ -163,33 +145,20 @@ void BoardInitMcu( void )
         RtcInit( );
 
         BoardUnusedIoInit( );
-        if( GetBoardPowerSource( ) == BATTERY_POWER )
-        {
-            // Disables OFF mode - Enables lowest power mode (STOP)
-            LpmSetOffMode( LPM_APPLI_ID, LPM_DISABLE );
-        }
     }
     else
     {
         SystemClockReConfig( );
     }
 
-#if defined( SX1262MBXCAS )
     SpiInit( &SX126x.Spi, SPI_1, RADIO_MOSI, RADIO_MISO, RADIO_SCLK, NC );
     SX126xIoInit( );
-#endif
 
     if( McuInitialized == false )
     {
         McuInitialized = true;
-#if defined( SX1262MBXCAS )
         SX126xIoDbgInit( );
         // WARNING: If necessary the TCXO control is initialized by SX126xInit function.
-#endif
-        if( GetBoardPowerSource( ) == BATTERY_POWER )
-        {
-            CalibrateSystemWakeupTime( );
-        }
     }
 }
 
@@ -203,10 +172,8 @@ void BoardResetMcu( void )
 
 void BoardDeInitMcu( void )
 {
-#if defined( SX1262MBXCAS )
     SpiDeInit( &SX126x.Spi );
     SX126xIoDeInit( );
-#endif
 }
 
 uint32_t BoardGetRandomSeed( void )
@@ -302,44 +269,6 @@ void SystemClockConfig( void )
     HAL_NVIC_SetPriority( SysTick_IRQn, 0, 0 );
 }
 
-void CalibrateSystemWakeupTime( void )
-{
-    if( SystemWakeupTimeCalibrated == false )
-    {
-        TimerInit( &CalibrateSystemWakeupTimeTimer, OnCalibrateSystemWakeupTimeTimerEvent );
-        TimerSetValue( &CalibrateSystemWakeupTimeTimer, 1000 );
-        TimerStart( &CalibrateSystemWakeupTimeTimer );
-        while( SystemWakeupTimeCalibrated == false )
-        {
-
-        }
-    }
-}
-
-/*!
- * \brief  Programmable Voltage Detector (PVD) Configuration
- *         PVD set to level 6 for a threshold around 2.9V.
- * \param  None
- * \retval None
- */
-static void PVD_Config( void )
-{
-    PWR_PVDTypeDef sConfigPVD;
-    sConfigPVD.PVDLevel = PWR_PVDLEVEL_6;
-    sConfigPVD.Mode     = PWR_PVD_MODE_IT_RISING;
-    if( HAL_PWR_ConfigPVD( &sConfigPVD ) != HAL_OK )
-    { 
-        assert_param( FAIL );
-    }
-
-    // Enable PVD
-    HAL_PWR_EnablePVD( );
-
-    // Enable and set PVD Interrupt priority
-    HAL_NVIC_SetPriority( PVD_PVM_IRQn, 0, 0 );
-    HAL_NVIC_EnableIRQ( PVD_PVM_IRQn );
-}
-
 void SystemClockReConfig( void )
 {
       RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
@@ -390,18 +319,6 @@ void SysTick_Handler( void )
 {
     HAL_IncTick( );
     HAL_SYSTICK_IRQHandler( );
-}
-
-uint8_t GetBoardPowerSource( void )
-{
-    if( UsbIsConnected == false )
-    {
-        return BATTERY_POWER;
-    }
-    else
-    {
-        return USB_POWER;
-    }
 }
 
 /**
