@@ -52,7 +52,9 @@ Gpio_t LedG;
 Gpio_t LedB;
 Gpio_t LedW;
 
-Gpio_t Pwr_rv3;
+Gpio_t Pwr_r1v8;
+Gpio_t Pwr_r3v3;
+
 
 /*
  * MCU objects
@@ -142,7 +144,9 @@ void BoardInitMcu( void )
         SystemClockConfig( );
 
         // LEDs
-        GpioInit( &Pwr_rv3, PWR_3V3, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 1 );
+        GpioInit( &Pwr_r3v3, PWR_3V3, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 1 );
+        GpioInit( &Pwr_r1v8, PWR_1V8, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 1 );
+
         GpioInit( &LedW, LED_W, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
         GpioInit( &LedR, LED_R, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );
         GpioInit( &LedG, LED_G, PIN_OUTPUT, PIN_PUSH_PULL, PIN_PULL_UP, 0 );

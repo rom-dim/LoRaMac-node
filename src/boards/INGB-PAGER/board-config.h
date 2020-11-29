@@ -56,6 +56,7 @@ extern "C"
 #define LED_B                                       PA_2
 #define LED_R                                       PA_3
 
+#define PWR_1V8                                       PH_11
 #define PWR_3V3                                       PI_9
 // Debug pins definition.
 //#define RADIO_DBG_PIN_TX                            PB_6
